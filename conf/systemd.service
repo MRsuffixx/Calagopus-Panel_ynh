@@ -1,27 +1,53 @@
 [Unit]
-Description=Small description of the service
-After=network.target
+Description=Calagopus Panel — Game Server Management Interface
+Documentation=https://docs.calagopus.com/panel
+# Ensure PostgreSQL and network are ready before starting
+After=network.target postgresql.service
+Wants=network.target
 
 [Service]
 Type=simple
+
+# Run as the dedicated YunoHost app system user (never as root)
 User=__APP__
 Group=__APP__
-WorkingDirectory=__INSTALL_DIR__/
-ExecStart=__INSTALL_DIR__/script
+
+# Working directory — used by the panel for relative path resolution
+WorkingDirectory=__INSTALL_DIR__
+
+# Read all environment variables from the .env file
+# This is the canonical configuration source for the Calagopus binary
+EnvironmentFile=/etc/calagopus/.env
+
+# The compiled Rust binary — single executable, no arguments needed
+ExecStart=/usr/local/bin/calagopus-panel
+
+# Restart policy: recover from crashes automatically
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# Redirect stdout to the YunoHost-managed log file
+# stderr inherits stdout so errors appear in the same log
 StandardOutput=append:/var/log/__APP__/__APP__.log
 StandardError=inherit
 
-### Depending on specificities of your service/app, you may need to tweak these
-### .. but this should be a good baseline
-# Sandboxing options to harden security
-# Details for these options: https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+# ---------------------------------------------------------------------------
+# Sandboxing — harden the service against privilege escalation
+# See: https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+# ---------------------------------------------------------------------------
 NoNewPrivileges=yes
 PrivateTmp=yes
 PrivateDevices=yes
+
+# Restrict to address families needed: TCP/IP and Unix sockets
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
 RestrictNamespaces=yes
 RestrictRealtime=yes
 DevicePolicy=closed
+
 ProtectClock=yes
 ProtectHostname=yes
 ProtectProc=invisible
@@ -29,12 +55,14 @@ ProtectSystem=full
 ProtectControlGroups=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
+
 LockPersonality=yes
 SystemCallArchitectures=native
+
+# Block syscall groups that a web panel should never need
 SystemCallFilter=~@clock @debug @module @mount @obsolete @reboot @setuid @swap @cpu-emulation @privileged
 
-# Denying access to capabilities that should not be relevant for webapps
-# Doc: https://man7.org/linux/man-pages/man7/capabilities.7.html
+# Drop capabilities irrelevant to a web application process
 CapabilityBoundingSet=~CAP_RAWIO CAP_MKNOD
 CapabilityBoundingSet=~CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE
 CapabilityBoundingSet=~CAP_SYS_BOOT CAP_SYS_TIME CAP_SYS_MODULE CAP_SYS_PACCT

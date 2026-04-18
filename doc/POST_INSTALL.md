@@ -1,7 +1,5 @@
-This is a dummy disclaimer to display after the install
+After installation, visit **https://__DOMAIN____PATH__** to complete the Out-of-Box Experience (OOBE) setup wizard and create your administrator account.
 
-The app url is <https://__DOMAIN____PATH__>
+> **Note:** Calagopus Panel uses its own authentication system. You cannot log in with your YunoHost credentials. SSO is intentionally disabled.
 
-The app install dir is `__INSTALL_DIR__`
-
-The app id is `__ID__`
+To manage actual game servers, you will also need to install and configure **Wings** (the node agent). See the [official Wings documentation](https://docs.calagopus.com/wings) for instructions.

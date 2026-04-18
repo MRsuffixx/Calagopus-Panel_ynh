@@ -7,18 +7,11 @@
 source _common.sh
 source /usr/share/yunohost/helpers
 
-### Settings are automatically loaded as bash variables
-### in every app script context, therefore typically these will exist:
-### - $domain
-### - $path
-### - $language
-### - $install_dir
-### - $port
-### ...
-
-### In the context of upgrade,
-### - resources are automatically provisioned / updated / deleted (depending on existing resources)
-### - a safety backup is automatically created by the core and will be restored if the upgrade fails
+# At this point YunoHost has already re-provisioned resources and a safety
+# backup of the previous install has been created automatically.
+#
+# Settings automatically available as bash variables:
+#   $app, $domain, $path, $install_dir, $port
 
 #=================================================
 # STOP SYSTEMD SERVICE
@@ -28,84 +21,110 @@ ynh_script_progression "Stopping $app's systemd service..."
 ynh_systemctl --service="$app" --action="stop"
 
 #=================================================
-# ENSURE DOWNWARD COMPATIBILITY
+# LOAD EXISTING SECRETS
+# CRITICAL: Read from stored settings — NEVER regenerate on upgrade.
+# Changing db_pwd would break DB access; changing app_encryption_key would
+# corrupt all encrypted data in the database.
 #=================================================
-ynh_script_progression "Ensuring downward compatibility..."
+ynh_script_progression "Loading existing configuration secrets..."
 
-ynh_app_setting_set_default --key=php_upload_max_filesize --value=50M
-ynh_app_setting_set_default --key=php_post_max_size --value=50M
+ynh_print_OFF
 
-### N.B. : the following setting migration snippets are provided as *EXAMPLES*
-### of what you may want to do in some cases (e.g. a setting was not defined on
-### some legacy installs and you therefore want to initiaze stuff during upgrade)
+db_pwd=$(ynh_app_setting_get --key=db_pwd)
+app_encryption_key=$(ynh_app_setting_get --key=app_encryption_key)
 
-# If db_name doesn't exist, create it
-# ynh_app_setting_set_default --key=db_name --value="$(ynh_sanitize_dbid --db_name=$app)"
+ynh_print_ON
 
-# If install_dir doesn't exist, create it
-# ynh_app_setting_set_default --key=install_dir --value="/var/www/$app"
+db_user=$(ynh_app_setting_get --key=db_user)
+db_name=$(ynh_app_setting_get --key=db_name)
 
-#=================================================
-# DOWNLOAD, CHECK AND UNPACK SOURCE
-#=================================================
-ynh_script_progression "Upgrading source files..."
+# Handle legacy installs that might not have these settings stored yet
+# (idempotent defaults — only written if the key is currently unset)
+ynh_app_setting_set_default --key=db_user --value="$app"
+ynh_app_setting_set_default --key=db_name --value="$app"
 
-### ynh_setup_source can wipe the destination dir if called with --full_replace.
-### On upgrade, that is certainly what you want, to remove any old source file that
-### does not exist in the new version of the software.
-### You can list with --keep every file/directory to *not* wipe or overwrite,
-### useful for configuration files, data directories, or plugins.
-# Download, check integrity, uncompress and patch the source from manifest.toml
-ynh_setup_source --dest_dir="$install_dir" --full_replace --keep=".env data"
-
-### $install_dir will automatically be initialized with some decent
-### permissions by default... however, you may need to recursively reapply
-### ownership to all files such as after the ynh_setup_source step
-chown -R "$app:www-data" "$install_dir"
+# Re-read in case the defaults were just written
+db_user=$(ynh_app_setting_get --key=db_user)
+db_name=$(ynh_app_setting_get --key=db_name)
 
 #=================================================
-# UPDATE A CONFIG FILE
+# ENSURE CACHE SERVER IS RUNNING
 #=================================================
-ynh_script_progression "Updating $app's configuration files..."
+ynh_script_progression "Ensuring cache server is running..."
 
-### Same as during install
-###
-### The file will automatically be backed-up if it's found to be manually modified (because
-### ynh_config_add keeps track of the file's checksum)
+cache_service=$(ynh_app_setting_get --key=cache_service)
 
-ynh_config_add --template="some_config_file" --destination="$install_dir/some_config_file"
+# Gracefully handle legacy installs that didn't track cache_service
+if [ -z "$cache_service" ]; then
+    if systemctl is-active --quiet valkey-server; then
+        cache_service="valkey-server"
+    elif systemctl is-active --quiet redis-server; then
+        cache_service="redis-server"
+    else
+        # Neither is running — install (will choose best available)
+        ynh_install_calagopus_cache
+        cache_service=$(ynh_app_setting_get --key=cache_service)
+    fi
+    ynh_app_setting_set --key=cache_service --value="$cache_service"
+fi
 
-# FIXME: this should be handled by the core in the future
-### You may need to use chmod 600 instead of 400,
-### for example if the app is expected to be able to modify its own config
-chmod 400 "$install_dir/some_config_file"
-chown "$app:$app" "$install_dir/some_config_file"
+# Make sure the selected cache server is actually running
+systemctl start "$cache_service" 2>/dev/null || true
 
-### For more complex cases where you want to replace stuff using regexes,
-### you shoud rely on ynh_replace (which is basically a wrapper for sed)
-### When doing so, you also need to manually call ynh_store_file_checksum
-###
-### ynh_replace --match="match_string" --replace="replace_string" --file="$install_dir/some_config_file"
-### ynh_store_file_checksum "$install_dir/some_config_file"
+#=================================================
+# UPGRADE BINARY
+#=================================================
+ynh_script_progression "Upgrading Calagopus Panel binary to latest release..."
+
+ynh_download_calagopus_binary
+
+#=================================================
+# ENSURE POSTGRESQL IS RUNNING
+#=================================================
+ynh_script_progression "Ensuring PostgreSQL is running..."
+
+systemctl start postgresql
+
+#=================================================
+# UPDATE .env CONFIGURATION FILE
+#=================================================
+ynh_script_progression "Updating configuration file..."
+
+# ynh_config_add will:
+# 1. Detect if /etc/calagopus/.env was manually modified (via checksum)
+# 2. If modified, back up the manual version before overwriting
+# 3. Re-generate from template with current settings (preserving secrets from settings)
+ynh_print_OFF
+ynh_config_add --template=".env" --destination="/etc/calagopus/.env"
+ynh_print_ON
+
+ynh_calagopus_fix_env_perms
+
+#=================================================
+# ENSURE LOG DIRECTORY EXISTS
+#=================================================
+ynh_script_progression "Ensuring log directory is present..."
+
+ynh_calagopus_setup_log_dir
 
 #=================================================
 # REAPPLY SYSTEM CONFIGURATION
 #=================================================
 ynh_script_progression "Upgrading system configurations related to $app..."
 
-### This should be a literal copypaste of what happened in the install's "System configuration" section
-
-ynh_config_add_phpfpm
-
-ynh_config_add_nginx
-
+# Re-apply systemd unit (picks up any template changes in this version)
 ynh_config_add_systemd
 
-yunohost service add "$app" --description="A short description of the app" --log="/var/log/$app/$app.log"
+# Re-register with YunoHost service manager
+yunohost service add "$app" \
+    --description="Calagopus Panel — Game Server Management Interface" \
+    --log="/var/log/$app/$app.log"
 
+# Re-apply NGINX config (picks up any template changes)
+ynh_config_add_nginx
+
+# Re-apply logrotate config
 ynh_config_add_logrotate
-
-ynh_config_add_fail2ban --logpath="/var/log/nginx/${domain}-error.log" --failregex="Regex to match into the log for a failed login"
 
 #=================================================
 # START SYSTEMD SERVICE
@@ -114,8 +133,15 @@ ynh_script_progression "Starting $app's systemd service..."
 
 ynh_systemctl --service="$app" --action="start"
 
+# Brief wait to let the service initialize
+sleep 3
+
+if ! systemctl is-active --quiet "$app"; then
+    ynh_die "Calagopus Panel service failed to start after upgrade. Check logs at /var/log/$app/$app.log"
+fi
+
 #=================================================
 # END OF SCRIPT
 #=================================================
 
-ynh_script_progression "Upgrade of $app completed"
+ynh_script_progression "Upgrade of $app completed successfully."

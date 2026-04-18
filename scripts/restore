@@ -4,86 +4,152 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-# Keep this path for calling _common.sh inside the execution's context of backup and restore scripts
+# In backup/restore scripts, _common.sh is sourced from the settings copy
 source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
-#=================================================
-# RESTORE THE APP MAIN DIR
-#=================================================
-ynh_script_progression "Restoring the app main directory..."
-
-ynh_restore "$install_dir"
-
-### $install_dir will automatically be initialized with some decent
-### permissions by default... however, you may need to recursively reapply
-### ownership to all files such as after the ynh_setup_source step
-chown -R "$app:www-data" "$install_dir"
+# At this point YunoHost has already:
+#   - Re-created the system user ($app)
+#   - Re-created the install directory ($install_dir)
+#   - Re-installed APT packages (postgresql, curl)
+#
+# Settings are loaded from the backed-up app settings, so $domain, $path,
+# $port, $install_dir, and all custom settings are already available.
 
 #=================================================
-# RESTORE THE DATA DIRECTORY
+# LOAD SETTINGS
 #=================================================
-ynh_script_progression "Restoring the data directory..."
 
-ynh_restore "$data_dir"
+db_user=$(ynh_app_setting_get --key=db_user)
+db_name=$(ynh_app_setting_get --key=db_name)
+cache_service=$(ynh_app_setting_get --key=cache_service)
 
-### (Same as for install dir)
-chown -R "$app:$app" "$data_dir"
+db_user="${db_user:-$app}"
+db_name="${db_name:-$app}"
+
+ynh_print_OFF
+db_pwd=$(ynh_app_setting_get --key=db_pwd)
+app_encryption_key=$(ynh_app_setting_get --key=app_encryption_key)
+ynh_print_ON
 
 #=================================================
-# RESTORE THE MYSQL DATABASE
+# RESTORE THE .env CONFIGURATION
 #=================================================
-ynh_script_progression "Restoring the MySQL database..."
+ynh_script_progression "Restoring configuration directory..."
 
-ynh_mysql_db_shell < ./db.sql
+# Re-create /etc/calagopus if it was removed
+ynh_calagopus_setup_config_dir
+
+# Restore the .env from the archive — this restores all secrets as-is
+ynh_restore "/etc/calagopus/.env"
+
+# Re-apply correct permissions to the restored file
+ynh_calagopus_fix_env_perms
 
 #=================================================
-# RESTORE SYSTEM CONFIGURATION
+# RE-DOWNLOAD THE CALAGOPUS BINARY
+# The binary is not stored in the backup archive; always fetch from GitHub.
+# This ensures we get a working binary compatible with the restored .env config.
 #=================================================
-ynh_script_progression "Restoring system configurations related to $app..."
+ynh_script_progression "Re-downloading Calagopus Panel binary..."
 
-### This should be a symetric version of what happens in the install script
+ynh_download_calagopus_binary
 
-ynh_restore "/etc/php/$php_version/fpm/pool.d/$app.conf"
+#=================================================
+# ENSURE CACHE SERVER IS RUNNING
+#=================================================
+ynh_script_progression "Ensuring cache server is running..."
+
+if [ -n "$cache_service" ]; then
+    # Try to start the previously-used cache server
+    if ! systemctl is-active --quiet "$cache_service"; then
+        systemctl start "$cache_service" 2>/dev/null || {
+            ynh_print_warn "$cache_service is not available — attempting to install cache server..."
+            ynh_install_calagopus_cache
+        }
+    fi
+else
+    # cache_service setting not found — install and detect
+    ynh_install_calagopus_cache
+fi
+
+#=================================================
+# RESTORE POSTGRESQL DATABASE
+#=================================================
+ynh_script_progression "Restoring PostgreSQL database..."
+
+# Ensure PostgreSQL is running
+systemctl enable postgresql --quiet
+systemctl start postgresql
+
+# Re-create the database user and database (they were dropped on remove or
+# are absent on a fresh server restore target)
+ynh_print_OFF
+ynh_calagopus_setup_db "$db_user" "$db_name" "$db_pwd"
+ynh_print_ON
+
+# Restore the database from the pg_dump file in the backup archive
+# pg_restore handles the custom-format dump created in the backup script
+sudo --login --user=postgres \
+    pg_restore \
+    --no-acl \
+    --no-owner \
+    --dbname="$db_name" \
+    "${YNH_CWD}/db.dump" \
+    || ynh_die "PostgreSQL restore of '$db_name' from db.dump failed."
+
+ynh_script_progression "PostgreSQL database '$db_name' restored successfully."
+
+#=================================================
+# CREATE LOG DIRECTORY
+#=================================================
+ynh_script_progression "Creating log directory..."
+
+ynh_calagopus_setup_log_dir
+
+#=================================================
+# RESTORE SYSTEM CONFIGURATION — NGINX
+#=================================================
+ynh_script_progression "Restoring NGINX configuration..."
 
 ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
 
-ynh_restore "/etc/systemd/system/$app.service"
-systemctl enable "$app.service" --quiet
+#=================================================
+# RESTORE SYSTEM CONFIGURATION — SYSTEMD
+#=================================================
+ynh_script_progression "Restoring systemd service..."
 
-yunohost service add "$app" --description="A short description of the app" --log="/var/log/$app/$app.log"
+ynh_restore "/etc/systemd/system/$app.service"
+
+# Re-enable the unit so it starts on boot
+systemctl enable "$app.service" --quiet
+systemctl daemon-reload
+
+# Re-register the service with YunoHost
+yunohost service add "$app" \
+    --description="Calagopus Panel — Game Server Management Interface" \
+    --log="/var/log/$app/$app.log"
+
+#=================================================
+# RESTORE SYSTEM CONFIGURATION — LOGROTATE
+#=================================================
+ynh_script_progression "Restoring logrotate configuration..."
 
 ynh_restore "/etc/logrotate.d/$app"
 
-ynh_restore "/etc/fail2ban/jail.d/$app.conf"
-ynh_restore "/etc/fail2ban/filter.d/$app.conf"
-ynh_systemctl --action=restart --service=fail2ban
-
 #=================================================
-# RESTORE VARIOUS FILES
+# START SERVICE AND RELOAD NGINX
 #=================================================
+ynh_script_progression "Starting $app service and reloading NGINX..."
 
-ynh_restore "/etc/cron.d/$app"
-ynh_restore "/etc/$app/"
-
-### For apps with huge logs, you might want to not backup logs every time:
-### The mkdir call is just here in case the log directory was not backed up.
-### mkdir -p "/var/log/$app"
-### chown $app:www-data "/var/log/$app"
-### ynh_restore "/var/log/$app/" || true
-###
-### For other apps, the simple way is better:
-ynh_restore "/var/log/$app/"
-
-#=================================================
-# RELOAD NGINX AND PHP-FPM OR THE APP SERVICE
-#=================================================
-ynh_script_progression "Reloading NGINX web server and $app's service..."
-
-### Typically you only have either $app or PHP-FPM but not both at the same time...
 ynh_systemctl --service="$app" --action="start"
 
-ynh_systemctl --service="php$php_version-fpm" --action=reload
+# Brief wait for the service to stabilize
+sleep 3
+
+if ! systemctl is-active --quiet "$app"; then
+    ynh_die "Calagopus Panel service failed to start after restore. Check logs at /var/log/$app/$app.log"
+fi
 
 ynh_systemctl --service=nginx --action=reload
 
@@ -91,4 +157,5 @@ ynh_systemctl --service=nginx --action=reload
 # END OF SCRIPT
 #=================================================
 
-ynh_script_progression "Restoration completed for $app"
+ynh_script_progression "Restoration of $app completed successfully.
+Your Calagopus Panel should be accessible at https://$domain$path"

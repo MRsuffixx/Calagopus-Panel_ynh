@@ -1,1 +1,1 @@
-This is a dummy description of this app features
+Calagopus Panel is an open-source, self-hosted game server management interface built with Rust (backend) and React (frontend). Inspired by Pterodactyl, it provides a modern web UI for creating, managing, and monitoring game servers through Wings node agents.
