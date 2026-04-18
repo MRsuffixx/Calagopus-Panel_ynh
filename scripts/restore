@@ -88,15 +88,13 @@ ynh_print_OFF
 ynh_calagopus_setup_db "$db_user" "$db_name" "$db_pwd"
 ynh_print_ON
 
-# Restore the database from the pg_dump file in the backup archive
-# pg_restore handles the custom-format dump created in the backup script
+# Restore the database from the plain-text SQL dump file in the backup archive
+# We use psql with stdin redirection to avoid file permission issues.
 sudo --login --user=postgres \
-    pg_restore \
-    --no-acl \
-    --no-owner \
+    psql \
     --dbname="$db_name" \
-    "${YNH_CWD}/db.dump" \
-    || ynh_die "PostgreSQL restore of '$db_name' from db.dump failed."
+    < "${YNH_CWD}/db.sql" \
+    || ynh_die "PostgreSQL restore of '$db_name' from db.sql failed."
 
 ynh_script_progression "PostgreSQL database '$db_name' restored successfully."
 

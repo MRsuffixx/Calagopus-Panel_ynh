@@ -51,14 +51,15 @@ db_name="${db_name:-$app}"
 # The core will include this file in the archive automatically
 sudo --login --user=postgres \
     pg_dump \
-    --format=custom \
+    --clean \
+    --if-exists \
     --no-acl \
     --no-owner \
     "$db_name" \
-    > "${YNH_CWD}/db.dump" \
+    > "${YNH_CWD}/db.sql" \
     || ynh_die "PostgreSQL dump of '$db_name' failed."
 
-ynh_print_info "PostgreSQL dump completed: ${YNH_CWD}/db.dump"
+ynh_print_info "PostgreSQL dump completed: ${YNH_CWD}/db.sql"
 
 #=================================================
 # NOTE: Binary NOT backed up
