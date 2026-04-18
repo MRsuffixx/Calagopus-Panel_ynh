@@ -1,1 +1,1 @@
-Ceci est une fausse description des fonctionalités de l'app
+Calagopus Panel est une interface de gestion de serveurs de jeux open-source et auto-hébergée, construite avec Rust (backend) et React (frontend). Inspirée par Pterodactyl, elle offre une interface web moderne pour créer, gérer et surveiller les serveurs de jeux via des agents de nœuds Wings.

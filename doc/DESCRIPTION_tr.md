@@ -1,0 +1,1 @@
+Calagopus Panel, Rust (arka uç) ve React (ön uç) ile oluşturulmuş, açık kaynaklı, kendi sunucunuzda barındırabileceğiniz bir oyun sunucusu yönetim arayüzüdür. Pterodactyl'den ilham alarak, Wings düğüm (node) aracılarıyla oyun sunucuları oluşturmak, yönetmek ve izlemek için modern bir web kullanıcı arayüzü sağlar.

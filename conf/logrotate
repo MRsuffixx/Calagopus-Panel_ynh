@@ -1,0 +1,13 @@
+/var/log/__APP__/*.log {
+    weekly
+    missingok
+    rotate 4
+    compress
+    delaycompress
+    notifempty
+    create 640 __APP__ __APP__
+    sharedscripts
+    postrotate
+        systemctl reload __APP__ > /dev/null 2>/dev/null || true
+    endscript
+}

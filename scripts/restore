@@ -93,7 +93,7 @@ set -x
 sudo --login --user=postgres \
     psql \
     --dbname="$db_name" \
-    < "${YNH_CWD}/db.sql" \
+    < "./db.sql" \
     || ynh_die "PostgreSQL restore of '$db_name' from db.sql failed."
 
 ynh_script_progression "PostgreSQL database '$db_name' restored successfully."

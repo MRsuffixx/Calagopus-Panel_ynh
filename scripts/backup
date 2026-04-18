@@ -56,10 +56,10 @@ sudo --login --user=postgres \
     --no-acl \
     --no-owner \
     "$db_name" \
-    > "${YNH_CWD}/db.sql" \
+    > "./db.sql" \
     || ynh_die "PostgreSQL dump of '$db_name' failed."
 
-ynh_print_info "PostgreSQL dump completed: ${YNH_CWD}/db.sql"
+ynh_print_info "PostgreSQL dump completed: ./db.sql"
 
 #=================================================
 # NOTE: Binary NOT backed up
