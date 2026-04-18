@@ -41,7 +41,7 @@ ynh_script_progression "Restoring configuration directory..."
 ynh_calagopus_setup_config_dir
 
 # Restore the .env from the archive — this restores all secrets as-is
-ynh_restore "/etc/calagopus/.env"
+ynh_restore --dest_path="/etc/calagopus/.env"
 
 # Re-apply correct permissions to the restored file
 ynh_calagopus_fix_env_perms
@@ -110,14 +110,14 @@ ynh_calagopus_setup_log_dir
 #=================================================
 ynh_script_progression "Restoring NGINX configuration..."
 
-ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
+ynh_restore --dest_path="/etc/nginx/conf.d/$domain.d/$app.conf"
 
 #=================================================
 # RESTORE SYSTEM CONFIGURATION — SYSTEMD
 #=================================================
 ynh_script_progression "Restoring systemd service..."
 
-ynh_restore "/etc/systemd/system/$app.service"
+ynh_restore --dest_path="/etc/systemd/system/$app.service"
 
 # Re-enable the unit so it starts on boot
 systemctl enable "$app.service" --quiet
@@ -133,7 +133,7 @@ yunohost service add "$app" \
 #=================================================
 ynh_script_progression "Restoring logrotate configuration..."
 
-ynh_restore "/etc/logrotate.d/$app"
+ynh_restore --dest_path="/etc/logrotate.d/$app"
 
 #=================================================
 # START SERVICE AND RELOAD NGINX

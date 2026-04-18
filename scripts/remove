@@ -61,7 +61,7 @@ ynh_config_remove_logrotate
 #=================================================
 ynh_script_progression "Removing Calagopus Panel binary..."
 
-ynh_safe_rm /usr/local/bin/calagopus-panel
+rm -f /usr/local/bin/calagopus-panel
 
 #=================================================
 # DROP POSTGRESQL DATABASE AND USER
@@ -82,14 +82,14 @@ fi
 ynh_script_progression "Removing configuration directory /etc/calagopus..."
 
 # Contains .env which holds secrets — remove securely
-ynh_safe_rm /etc/calagopus
+rm -rf /etc/calagopus
 
 #=================================================
 # REMOVE LOG DIRECTORY
 #=================================================
 ynh_script_progression "Removing log directory /var/log/$app..."
 
-ynh_safe_rm "/var/log/$app"
+rm -rf "/var/log/$app"
 
 #=================================================
 # NOTE ON CACHE SERVER

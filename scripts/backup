@@ -21,7 +21,7 @@ ynh_print_info "Declaring files to be backed up..."
 
 ynh_print_info "Backing up /etc/calagopus/.env (configuration and secrets)..."
 
-ynh_backup "/etc/calagopus/.env"
+ynh_backup --src_path="/etc/calagopus/.env"
 
 #=================================================
 # BACKUP SYSTEM CONFIGURATION FILES
@@ -30,13 +30,13 @@ ynh_backup "/etc/calagopus/.env"
 ynh_print_info "Backing up system configuration files..."
 
 # NGINX virtual host config for this app
-ynh_backup "/etc/nginx/conf.d/$domain.d/$app.conf"
+ynh_backup --src_path="/etc/nginx/conf.d/$domain.d/$app.conf"
 
 # systemd unit file
-ynh_backup "/etc/systemd/system/$app.service"
+ynh_backup --src_path="/etc/systemd/system/$app.service"
 
 # logrotate config
-ynh_backup "/etc/logrotate.d/$app"
+ynh_backup --src_path="/etc/logrotate.d/$app"
 
 #=================================================
 # BACKUP POSTGRESQL DATABASE

@@ -25,7 +25,7 @@ ynh_script_progression "Generating secrets..."
 set +x
 
 # 32-character random database password
-db_pwd=$(ynh_string_random 32)
+db_pwd=$(ynh_string_random --length=32)
 ynh_app_setting_set --key=db_pwd --value="$db_pwd"
 
 # 16-character alphanumeric encryption key (exactly as required by Calagopus)

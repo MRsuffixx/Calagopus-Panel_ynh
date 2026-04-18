@@ -76,14 +76,14 @@ ynh_install_calagopus_cache() {
 
     if apt-cache show valkey > /dev/null 2>&1; then
         ynh_script_progression "Installing Valkey..."
-        ynh_install_apt_packages valkey
+        ynh_install_apt_packages --packages="valkey"
         systemctl enable valkey-server --quiet
         systemctl start valkey-server
         ynh_app_setting_set --key=cache_service --value="valkey-server"
         ynh_script_progression "Valkey started successfully."
     else
         ynh_script_progression "Valkey not available — falling back to redis-server..."
-        ynh_install_apt_packages redis-server
+        ynh_install_apt_packages --packages="redis-server"
         systemctl enable redis-server --quiet
         systemctl start redis-server
         ynh_app_setting_set --key=cache_service --value="redis-server"
