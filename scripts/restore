@@ -27,10 +27,10 @@ cache_service=$(ynh_app_setting_get --key=cache_service)
 db_user="${db_user:-$app}"
 db_name="${db_name:-$app}"
 
-ynh_print_OFF
+set +x
 db_pwd=$(ynh_app_setting_get --key=db_pwd)
 app_encryption_key=$(ynh_app_setting_get --key=app_encryption_key)
-ynh_print_ON
+set -x
 
 #=================================================
 # RESTORE THE .env CONFIGURATION
@@ -84,9 +84,9 @@ systemctl start postgresql
 
 # Re-create the database user and database (they were dropped on remove or
 # are absent on a fresh server restore target)
-ynh_print_OFF
+set +x
 ynh_calagopus_setup_db "$db_user" "$db_name" "$db_pwd"
-ynh_print_ON
+set -x
 
 # Restore the database from the plain-text SQL dump file in the backup archive
 # We use psql with stdin redirection to avoid file permission issues.

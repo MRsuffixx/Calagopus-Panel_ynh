@@ -22,7 +22,7 @@ source /usr/share/yunohost/helpers
 #=================================================
 ynh_script_progression "Generating secrets..."
 
-ynh_print_OFF
+set +x
 
 # 32-character random database password
 db_pwd=$(ynh_string_random 32)
@@ -32,7 +32,7 @@ ynh_app_setting_set --key=db_pwd --value="$db_pwd"
 app_encryption_key=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 ynh_app_setting_set --key=app_encryption_key --value="$app_encryption_key"
 
-ynh_print_ON
+set -x
 
 # Database identifiers — set in _common.sh but we save them as settings too
 ynh_app_setting_set --key=db_user --value="$db_user"
@@ -60,9 +60,9 @@ ynh_script_progression "Setting up PostgreSQL database..."
 systemctl enable postgresql --quiet
 systemctl start postgresql
 
-ynh_print_OFF
+set +x
 ynh_calagopus_setup_db "$db_user" "$db_name" "$db_pwd"
-ynh_print_ON
+set -x
 
 #=================================================
 # CREATE CONFIGURATION DIRECTORY
@@ -88,9 +88,9 @@ ynh_script_progression "Generating .env configuration file..."
 #   __APP__                → $app
 #   __DOMAIN__             → $domain
 
-ynh_print_OFF
+set +x
 ynh_config_add --template=".env" --destination="/etc/calagopus/.env"
-ynh_print_ON
+set -x
 
 ynh_calagopus_fix_env_perms
 

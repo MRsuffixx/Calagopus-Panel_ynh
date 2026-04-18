@@ -28,12 +28,12 @@ ynh_systemctl --service="$app" --action="stop"
 #=================================================
 ynh_script_progression "Loading existing configuration secrets..."
 
-ynh_print_OFF
+set +x
 
 db_pwd=$(ynh_app_setting_get --key=db_pwd)
 app_encryption_key=$(ynh_app_setting_get --key=app_encryption_key)
 
-ynh_print_ON
+set -x
 
 db_user=$(ynh_app_setting_get --key=db_user)
 db_name=$(ynh_app_setting_get --key=db_name)
@@ -94,9 +94,9 @@ ynh_script_progression "Updating configuration file..."
 # 1. Detect if /etc/calagopus/.env was manually modified (via checksum)
 # 2. If modified, back up the manual version before overwriting
 # 3. Re-generate from template with current settings (preserving secrets from settings)
-ynh_print_OFF
+set +x
 ynh_config_add --template=".env" --destination="/etc/calagopus/.env"
-ynh_print_ON
+set -x
 
 ynh_calagopus_fix_env_perms
 
