@@ -58,7 +58,6 @@ ram.runtime = "512M"
     # Install directory — used as a working/data directory placeholder
     # ------------------------------------------------------------
     [resources.install_dir]
-    dir = "/var/www/$app"
 
     # ------------------------------------------------------------
     # Port — YunoHost picks a free port near 8000
