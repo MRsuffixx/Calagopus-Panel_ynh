@@ -4,7 +4,6 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-source _common.sh
 source /usr/share/yunohost/helpers
 
 # At this point YunoHost has already:
@@ -34,42 +33,14 @@ ynh_app_setting_set --key=app_encryption_key --value="$app_encryption_key"
 
 set -x
 
-# Database identifiers — set in _common.sh but we save them as settings too
-ynh_app_setting_set --key=db_user --value="$db_user"
-ynh_app_setting_set --key=db_name --value="$db_name"
-
 #=================================================
-# INSTALL VALKEY / REDIS CACHE SERVER
-#=================================================
-
-ynh_install_calagopus_cache
-
-#=================================================
-# DOWNLOAD CALAGOPUS BINARY
+# INSTALL CALAGOPUS BINARY
 #=================================================
 ynh_script_progression "Downloading Calagopus Panel binary..."
 
-ynh_download_calagopus_binary
-
-#=================================================
-# POSTGRESQL SETUP
-#=================================================
-ynh_script_progression "Setting up PostgreSQL database..."
-
-# Ensure PostgreSQL is running
-systemctl enable postgresql --quiet
-systemctl start postgresql
-
-set +x
-ynh_calagopus_setup_db "$db_user" "$db_name" "$db_pwd"
-set -x
-
-#=================================================
-# CREATE CONFIGURATION DIRECTORY
-#=================================================
-ynh_script_progression "Creating configuration directory..."
-
-ynh_calagopus_setup_config_dir
+ynh_setup_source --dest_dir="$install_dir"
+chmod +x "$install_dir/calagopus-panel"
+chown "$app:$app" "$install_dir/calagopus-panel"
 
 #=================================================
 # GENERATE .env FROM TEMPLATE
@@ -89,17 +60,20 @@ ynh_script_progression "Generating .env configuration file..."
 #   __DOMAIN__             → $domain
 
 set +x
-ynh_config_add --template=".env" --destination="/etc/calagopus/.env"
+ynh_config_add --template=".env" --destination="$install_dir/.env"
 set -x
 
-ynh_calagopus_fix_env_perms
+chown "$app:$app" "$install_dir/.env"
+chmod 600 "$install_dir/.env"
 
 #=================================================
 # CREATE LOG DIRECTORY
 #=================================================
 ynh_script_progression "Creating log directory..."
 
-ynh_calagopus_setup_log_dir
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+chmod 750 "/var/log/$app"
 
 #=================================================
 # SYSTEM CONFIGURATION — SYSTEMD

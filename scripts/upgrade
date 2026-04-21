@@ -4,7 +4,6 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-source _common.sh
 source /usr/share/yunohost/helpers
 
 # At this point YunoHost has already re-provisioned resources and a safety
@@ -35,55 +34,26 @@ app_encryption_key=$(ynh_app_setting_get --key=app_encryption_key)
 
 set -x
 
-db_user=$(ynh_app_setting_get --key=db_user)
-db_name=$(ynh_app_setting_get --key=db_name)
-
-# Handle legacy installs that might not have these settings stored yet
-# (idempotent defaults — only written if the key is currently unset)
-ynh_app_setting_set_default --key=db_user --value="$app"
-ynh_app_setting_set_default --key=db_name --value="$app"
-
-# Re-read in case the defaults were just written
-db_user=$(ynh_app_setting_get --key=db_user)
-db_name=$(ynh_app_setting_get --key=db_name)
+# Settings automatically available as bash variables: db_pwd and app_encryption_key
 
 #=================================================
 # ENSURE CACHE SERVER IS RUNNING
 #=================================================
-ynh_script_progression "Ensuring cache server is running..."
-
-cache_service=$(ynh_app_setting_get --key=cache_service)
-
-# Gracefully handle legacy installs that didn't track cache_service
-if [ -z "$cache_service" ]; then
-    if systemctl is-active --quiet valkey-server; then
-        cache_service="valkey-server"
-    elif systemctl is-active --quiet redis-server; then
-        cache_service="redis-server"
-    else
-        # Neither is running — install (will choose best available)
-        ynh_install_calagopus_cache
-        cache_service=$(ynh_app_setting_get --key=cache_service)
-    fi
-    ynh_app_setting_set --key=cache_service --value="$cache_service"
-fi
-
-# Make sure the selected cache server is actually running
-systemctl start "$cache_service" 2>/dev/null || true
+# Handled by YunoHost natively as redis-server in [resources.apt].
 
 #=================================================
 # UPGRADE BINARY
 #=================================================
 ynh_script_progression "Upgrading Calagopus Panel binary to latest release..."
 
-ynh_download_calagopus_binary
+ynh_setup_source --dest_dir="$install_dir"
+chmod +x "$install_dir/calagopus-panel"
+chown "$app:$app" "$install_dir/calagopus-panel"
 
 #=================================================
 # ENSURE POSTGRESQL IS RUNNING
 #=================================================
-ynh_script_progression "Ensuring PostgreSQL is running..."
-
-systemctl start postgresql
+# PostgreSQL is handled by YunoHost natively.
 
 #=================================================
 # UPDATE .env CONFIGURATION FILE
@@ -95,17 +65,20 @@ ynh_script_progression "Updating configuration file..."
 # 2. If modified, back up the manual version before overwriting
 # 3. Re-generate from template with current settings (preserving secrets from settings)
 set +x
-ynh_config_add --template=".env" --destination="/etc/calagopus/.env"
+ynh_config_add --template=".env" --destination="$install_dir/.env"
 set -x
 
-ynh_calagopus_fix_env_perms
+chown "$app:$app" "$install_dir/.env"
+chmod 600 "$install_dir/.env"
 
 #=================================================
 # ENSURE LOG DIRECTORY EXISTS
 #=================================================
 ynh_script_progression "Ensuring log directory is present..."
 
-ynh_calagopus_setup_log_dir
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+chmod 750 "/var/log/$app"
 
 #=================================================
 # REAPPLY SYSTEM CONFIGURATION

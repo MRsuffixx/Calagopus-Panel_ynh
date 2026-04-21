@@ -4,7 +4,6 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-source _common.sh
 source /usr/share/yunohost/helpers
 
 # After this script runs, YunoHost will automatically deprovision:
@@ -18,13 +17,9 @@ source /usr/share/yunohost/helpers
 # LOAD SETTINGS
 #=================================================
 
-db_user=$(ynh_app_setting_get --key=db_user)
-db_name=$(ynh_app_setting_get --key=db_name)
-cache_service=$(ynh_app_setting_get --key=cache_service)
-
-# Fall back to app name if settings were not stored
-db_user="${db_user:-$app}"
-db_name="${db_name:-$app}"
+# Settings are handled automatically by YunoHost remove script.
+# We do not need to drop the database manually anymore as
+# YunoHost's [resources.database] handles it.
 
 #=================================================
 # STOP AND REMOVE SERVICE FROM YUNOHOST
@@ -59,30 +54,9 @@ ynh_config_remove_logrotate
 #=================================================
 # REMOVE CALAGOPUS BINARY
 #=================================================
-ynh_script_progression "Removing Calagopus Panel binary..."
-
-rm -f /usr/local/bin/calagopus-panel
-
-#=================================================
-# DROP POSTGRESQL DATABASE AND USER
-#=================================================
-ynh_script_progression "Dropping PostgreSQL database and user..."
-
-# Ensure PostgreSQL is running to accept DROP commands
-if systemctl is-active --quiet postgresql; then
-    ynh_calagopus_drop_db "$db_user" "$db_name"
-else
-    ynh_print_warn "PostgreSQL is not running — skipping database removal. \
-You may need to manually drop the '$db_name' database and '$db_user' user."
-fi
-
-#=================================================
-# REMOVE CONFIGURATION DIRECTORY
-#=================================================
-ynh_script_progression "Removing configuration directory /etc/calagopus..."
-
-# Contains .env which holds secrets — remove securely
-rm -rf /etc/calagopus
+# YunoHost automatically removes $install_dir during [resources.install_dir] cleanup,
+# which now contains the binary and .env files.
+# It also automatically drops the database via [resources.database].
 
 #=================================================
 # REMOVE LOG DIRECTORY

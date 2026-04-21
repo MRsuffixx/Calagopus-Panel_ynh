@@ -17,10 +17,10 @@ WorkingDirectory=__INSTALL_DIR__
 
 # Read all environment variables from the .env file
 # This is the canonical configuration source for the Calagopus binary
-EnvironmentFile=/etc/calagopus/.env
+EnvironmentFile=__INSTALL_DIR__/.env
 
 # The compiled Rust binary — single executable, no arguments needed
-ExecStart=/usr/local/bin/calagopus-panel
+ExecStart=__INSTALL_DIR__/calagopus-panel
 
 # Restart policy: recover from crashes automatically
 Restart=on-failure
