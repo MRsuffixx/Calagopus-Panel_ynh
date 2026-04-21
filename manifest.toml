@@ -85,12 +85,11 @@ ram.runtime = "512M"
     # Sources — downloaded automatically into $install_dir
     # ------------------------------------------------------------
     [resources.sources.main]
-    # TODO: Replace the URLs with actual stable version URLs and add correct SHA256 sums
-    amd64.url = "https://github.com/calagopus/panel/releases/download/v0.1.0/panel-rs-x86_64-linux"
-    amd64.sha256 = "INSERT_AMD64_SHA256_HERE"
+    amd64.url = "https://github.com/calagopus/panel/releases/download/release-1.0.2/panel-rs-x86_64-linux"
+    amd64.sha256 = "9e5a8555e9a411ba6a569f937bbf6844943f48b3a2b9340dd5dc8efebba7c80e"
 
-    arm64.url = "https://github.com/calagopus/panel/releases/download/v0.1.0/panel-rs-aarch64-linux"
-    arm64.sha256 = "INSERT_ARM64_SHA256_HERE"
+    arm64.url = "https://github.com/calagopus/panel/releases/download/release-1.0.2/panel-rs-aarch64-linux"
+    arm64.sha256 = "ebae0c1082807efb10c2c12d80bdf4d23bcc0a0bd708b6f3c81f33bc1cab8fc6"
 
     extract = false
     rename = "calagopus-panel"
