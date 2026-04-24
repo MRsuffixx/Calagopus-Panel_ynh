@@ -23,10 +23,6 @@ ynh_script_progression "Generating secrets..."
 
 set +x
 
-# 32-character random database password
-db_pwd=$(ynh_string_random --length=32)
-ynh_app_setting_set --key=db_pwd --value="$db_pwd"
-
 # 16-character alphanumeric encryption key (exactly as required by Calagopus)
 app_encryption_key=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
 ynh_app_setting_set --key=app_encryption_key --value="$app_encryption_key"
