@@ -2,8 +2,8 @@
 Description=Calagopus Panel — Game Server Management Interface
 Documentation=https://docs.calagopus.com/panel
 # Ensure PostgreSQL and network are ready before starting
-After=network.target postgresql.service
-Wants=network.target
+After=network.target postgresql.service redis-server.service
+Wants=network.target redis-server.service
 
 [Service]
 Type=simple
@@ -70,7 +70,7 @@ CapabilityBoundingSet=~CAP_LEASE CAP_LINUX_IMMUTABLE CAP_IPC_LOCK
 CapabilityBoundingSet=~CAP_BLOCK_SUSPEND CAP_WAKE_ALARM
 CapabilityBoundingSet=~CAP_SYS_TTY_CONFIG
 CapabilityBoundingSet=~CAP_MAC_ADMIN CAP_MAC_OVERRIDE
-CapabilityBoundingSet=~CAP_NET_ADMIN CAP_NET_BROADCAST CAP_NET_RAW
+CapabilityBoundingSet=~CAP_NET_ADMIN CAP_NET_BROADCAST
 CapabilityBoundingSet=~CAP_SYS_ADMIN CAP_SYS_PTRACE CAP_SYSLOG
 
 [Install]

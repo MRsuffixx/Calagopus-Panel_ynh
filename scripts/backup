@@ -4,7 +4,6 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-# In backup/restore scripts, _common.sh is sourced from the settings copy
 source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
@@ -15,13 +14,13 @@ ynh_print_info "Declaring files to be backed up..."
 # after this script completes. Most ynh_backup calls are therefore instant.
 
 #=================================================
-# BACKUP THE ENVIRONMENT CONFIGURATION
-# Contains all secrets — this is the most critical file to back up
+# BACKUP THE APP INSTALL DIRECTORY
+# Contains the binary and .env configuration (with all secrets)
 #=================================================
 
-ynh_print_info "Backing up /etc/calagopus/.env (configuration and secrets)..."
+ynh_print_info "Backing up $install_dir (binary + configuration)..."
 
-ynh_backup --src_path="/etc/calagopus/.env"
+ynh_backup --src_path="$install_dir"
 
 #=================================================
 # BACKUP SYSTEM CONFIGURATION FILES
@@ -60,13 +59,6 @@ sudo --login --user=postgres \
     || ynh_die "PostgreSQL dump of '$db_name' failed."
 
 ynh_print_info "PostgreSQL dump completed: ./db.sql"
-
-#=================================================
-# NOTE: Binary NOT backed up
-# The Calagopus binary at /usr/local/bin/calagopus-panel is NOT included.
-# It can be re-downloaded from GitHub during restore, keeping the archive
-# small and ensuring the latest binary is always used on restore.
-#=================================================
 
 #=================================================
 # NOTE: Log files NOT backed up

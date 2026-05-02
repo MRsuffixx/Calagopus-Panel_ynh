@@ -62,6 +62,12 @@ set -x
 chown "$app:$app" "$install_dir/.env"
 chmod 600 "$install_dir/.env"
 
+# Create symlink at /etc/calagopus/.env → $install_dir/.env
+# The upstream calagopus-panel binary expects its .env at /etc/calagopus/.env
+mkdir -p /etc/calagopus
+ln -sf "$install_dir/.env" /etc/calagopus/.env
+chown -h "$app:$app" /etc/calagopus/.env
+
 #=================================================
 # CREATE LOG DIRECTORY
 #=================================================

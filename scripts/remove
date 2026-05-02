@@ -66,6 +66,14 @@ ynh_script_progression "Removing log directory /var/log/$app..."
 rm -rf "/var/log/$app"
 
 #=================================================
+# REMOVE /etc/calagopus SYMLINK AND DIRECTORY
+#=================================================
+ynh_script_progression "Removing /etc/calagopus configuration directory..."
+
+rm -f /etc/calagopus/.env
+rmdir /etc/calagopus 2>/dev/null || true
+
+#=================================================
 # NOTE ON CACHE SERVER
 #=================================================
 # We intentionally do NOT stop or remove Valkey/Redis here.

@@ -39,10 +39,10 @@ ynh_script_progression "Updating SERVER_NAME in configuration..."
 ynh_replace \
     --match="^SERVER_NAME=.*" \
     --replace="SERVER_NAME=$domain" \
-    --file="/etc/calagopus/.env"
+    --file="$install_dir/.env"
 
 # Update the stored checksum so YunoHost doesn't treat this as a manual edit
-ynh_store_file_checksum "/etc/calagopus/.env"
+ynh_store_file_checksum "$install_dir/.env"
 
 #=================================================
 # START SYSTEMD SERVICE

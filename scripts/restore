@@ -4,14 +4,14 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-# In backup/restore scripts, _common.sh is sourced from the settings copy
 source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
 # At this point YunoHost has already:
 #   - Re-created the system user ($app)
 #   - Re-created the install directory ($install_dir)
-#   - Re-installed APT packages (postgresql, curl)
+#   - Re-installed APT packages (redis-server)
+#   - Re-provisioned the PostgreSQL database ($db_name, $db_user, $db_pwd)
 #
 # Settings are loaded from the backed-up app settings, so $domain, $path,
 # $port, $install_dir, and all custom settings are already available.
@@ -20,58 +20,41 @@ source /usr/share/yunohost/helpers
 # LOAD SETTINGS
 #=================================================
 
-db_user=$(ynh_app_setting_get --key=db_user)
-db_name=$(ynh_app_setting_get --key=db_name)
-cache_service=$(ynh_app_setting_get --key=cache_service)
-
-db_user="${db_user:-$app}"
-db_name="${db_name:-$app}"
-
 set +x
-db_pwd=$(ynh_app_setting_get --key=db_pwd)
 app_encryption_key=$(ynh_app_setting_get --key=app_encryption_key)
 set -x
 
 #=================================================
-# RESTORE THE .env CONFIGURATION
+# RESTORE THE APP INSTALL DIRECTORY
+# Contains the binary and .env configuration
 #=================================================
-ynh_script_progression "Restoring configuration directory..."
+ynh_script_progression "Restoring $install_dir..."
 
-# Re-create /etc/calagopus if it was removed
-ynh_calagopus_setup_config_dir
+ynh_restore --dest_path="$install_dir"
 
-# Restore the .env from the archive — this restores all secrets as-is
-ynh_restore --dest_path="/etc/calagopus/.env"
-
-# Re-apply correct permissions to the restored file
-ynh_calagopus_fix_env_perms
-
-#=================================================
-# RE-DOWNLOAD THE CALAGOPUS BINARY
-# The binary is not stored in the backup archive; always fetch from GitHub.
-# This ensures we get a working binary compatible with the restored .env config.
-#=================================================
-ynh_script_progression "Re-downloading Calagopus Panel binary..."
-
-ynh_download_calagopus_binary
+# Ensure correct ownership and permissions
+chown -R "$app:$app" "$install_dir"
+chmod +x "$install_dir/calagopus-panel"
+chmod 600 "$install_dir/.env"
 
 #=================================================
-# ENSURE CACHE SERVER IS RUNNING
+# CREATE /etc/calagopus SYMLINK
+# The upstream binary expects its .env at /etc/calagopus/.env
 #=================================================
-ynh_script_progression "Ensuring cache server is running..."
+ynh_script_progression "Creating configuration symlink..."
 
-if [ -n "$cache_service" ]; then
-    # Try to start the previously-used cache server
-    if ! systemctl is-active --quiet "$cache_service"; then
-        systemctl start "$cache_service" 2>/dev/null || {
-            ynh_print_warn "$cache_service is not available — attempting to install cache server..."
-            ynh_install_calagopus_cache
-        }
-    fi
-else
-    # cache_service setting not found — install and detect
-    ynh_install_calagopus_cache
-fi
+mkdir -p /etc/calagopus
+ln -sf "$install_dir/.env" /etc/calagopus/.env
+chown -h "$app:$app" /etc/calagopus/.env
+
+#=================================================
+# CREATE LOG DIRECTORY
+#=================================================
+ynh_script_progression "Creating log directory..."
+
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+chmod 750 "/var/log/$app"
 
 #=================================================
 # RESTORE POSTGRESQL DATABASE
@@ -82,14 +65,10 @@ ynh_script_progression "Restoring PostgreSQL database..."
 systemctl enable postgresql --quiet
 systemctl start postgresql
 
-# Re-create the database user and database (they were dropped on remove or
-# are absent on a fresh server restore target)
-set +x
-ynh_calagopus_setup_db "$db_user" "$db_name" "$db_pwd"
-set -x
-
 # Restore the database from the plain-text SQL dump file in the backup archive
-# We use psql with stdin redirection to avoid file permission issues.
+db_name=$(ynh_app_setting_get --key=db_name)
+db_name="${db_name:-$app}"
+
 sudo --login --user=postgres \
     psql \
     --dbname="$db_name" \
@@ -97,13 +76,6 @@ sudo --login --user=postgres \
     || ynh_die "PostgreSQL restore of '$db_name' from db.sql failed."
 
 ynh_script_progression "PostgreSQL database '$db_name' restored successfully."
-
-#=================================================
-# CREATE LOG DIRECTORY
-#=================================================
-ynh_script_progression "Creating log directory..."
-
-ynh_calagopus_setup_log_dir
 
 #=================================================
 # RESTORE SYSTEM CONFIGURATION — NGINX
