@@ -1,27 +1,65 @@
 [Unit]
-Description=Small description of the service
-After=network.target
+Description=Calagopus Panel — game server management panel
+Documentation=https://calagopus.com/docs/panel/
+After=network.target postgresql.service redis.service redis-server.service
 
 [Service]
 Type=simple
 User=__APP__
 Group=__APP__
-WorkingDirectory=__INSTALL_DIR__/
-ExecStart=__INSTALL_DIR__/script
+
+# Working directory must be set to install_dir so the panel finds .env here
+WorkingDirectory=__INSTALL_DIR__
+
+# Load environment from .env in install_dir (the panel also reads it natively,
+# but EnvironmentFile ensures all vars are available to the process)
+EnvironmentFile=__INSTALL_DIR__/.env
+
+# The calagopus-panel APT package installs the binary here.
+# ASSUMPTION: Verified path is /usr/bin/calagopus-panel — adjust if the
+# upstream package places it elsewhere (check: dpkg -L calagopus-panel | grep bin)
+ExecStart=/usr/bin/calagopus-panel
+
+# Write panel stdout to the dedicated log file
 StandardOutput=append:/var/log/__APP__/__APP__.log
 StandardError=inherit
 
-### Depending on specificities of your service/app, you may need to tweak these
-### .. but this should be a good baseline
-# Sandboxing options to harden security
-# Details for these options: https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+# Restart policy — restart on failure with backoff
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# =====================================================================
+# SECURITY HARDENING
+# Appropriate for a Rust binary web application running as a system user.
+# =====================================================================
+
+# Prevent privilege escalation
 NoNewPrivileges=yes
+
+# Private /tmp
 PrivateTmp=yes
+
+# No access to physical devices
 PrivateDevices=yes
+
+# Allow only the address families the panel actually needs:
+#   AF_INET / AF_INET6: HTTP listener + outbound connections (PostgreSQL, Redis, Wings)
+#   AF_UNIX: PostgreSQL socket fallback
+#   AF_NETLINK: needed by tokio/rustls for async I/O on Linux
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+# Isolate namespace views
 RestrictNamespaces=yes
+
+# Deny real-time scheduling
 RestrictRealtime=yes
+
+# Device policy
 DevicePolicy=closed
+
+# Protect system resources
 ProtectClock=yes
 ProtectHostname=yes
 ProtectProc=invisible
@@ -30,11 +68,16 @@ ProtectControlGroups=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
 LockPersonality=yes
+
+# Restrict to native system call architecture only
 SystemCallArchitectures=native
+
+# Deny syscall groups that a web panel has no business calling:
+# @clock @debug @module @mount @obsolete @reboot @setuid @swap
+# @cpu-emulation @privileged
 SystemCallFilter=~@clock @debug @module @mount @obsolete @reboot @setuid @swap @cpu-emulation @privileged
 
-# Denying access to capabilities that should not be relevant for webapps
-# Doc: https://man7.org/linux/man-pages/man7/capabilities.7.html
+# Drop dangerous capabilities not needed by a web application
 CapabilityBoundingSet=~CAP_RAWIO CAP_MKNOD
 CapabilityBoundingSet=~CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE
 CapabilityBoundingSet=~CAP_SYS_BOOT CAP_SYS_TIME CAP_SYS_MODULE CAP_SYS_PACCT
