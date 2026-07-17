@@ -5,9 +5,9 @@
 #=================================================
 
 # The binary installed by the calagopus-panel package.
-# ASSUMPTION: The APT package places the binary at /usr/bin/calagopus-panel.
-# Verify by inspecting the installed package on first deployment.
-panel_binary="/usr/bin/calagopus-panel"
+# ASSUMPTION: The APT package places the binary at /usr/local/bin/calagopus-panel.
+# If this changes upstream, update the path here and in conf/systemd.service.
+panel_binary="/usr/local/bin/calagopus-panel"
 
 # Environment file path — placed in install_dir so multi-instance installs each
 # have their own .env and the encryption key is isolated per instance.

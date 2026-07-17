@@ -16,9 +16,9 @@ WorkingDirectory=__INSTALL_DIR__
 EnvironmentFile=__INSTALL_DIR__/.env
 
 # The calagopus-panel APT package installs the binary here.
-# ASSUMPTION: Verified path is /usr/bin/calagopus-panel — adjust if the
+# ASSUMPTION: Verified path is /usr/local/bin/calagopus-panel — adjust if the
 # upstream package places it elsewhere (check: dpkg -L calagopus-panel | grep bin)
-ExecStart=/usr/bin/calagopus-panel
+ExecStart=/usr/local/bin/calagopus-panel
 
 # Write panel stdout to the dedicated log file
 StandardOutput=append:/var/log/__APP__/__APP__.log

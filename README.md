@@ -92,7 +92,7 @@ Configurable options:
 
 The following items could not be definitively verified at packaging time and are assumptions:
 
-1. **Binary path:** The APT package is assumed to install the binary at `/usr/bin/calagopus-panel`. Verify with `dpkg -L calagopus-panel | grep bin` after installation.
+1. **Binary path:** The APT package is assumed to install the binary at `/usr/local/bin/calagopus-panel`. Verify with `dpkg -L calagopus-panel | grep bin` after installation.
 
 2. **Supported architectures:** Only `amd64` is declared. ARM64 and other architectures may or may not be available in the upstream APT repo. Check `https://packages.calagopus.com/` to verify.
 
