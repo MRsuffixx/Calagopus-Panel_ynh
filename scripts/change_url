@@ -1,8 +1,8 @@
 #!/bin/bash
 
-## this script is only run if actual change to domain/path is detected, if you're here either $domain or $path changed
-## new location is available via $domain and $path (or $new_domain and $new_path variables if you want to be explicit)
-## old values are available via, you guessed it, $old_domain and $old_path
+## change_url is called only when an actual change to domain or path is detected.
+## New values: $domain, $path (or $new_domain, $new_path for explicitness)
+## Old values: $old_domain, $old_path
 
 #=================================================
 # IMPORT GENERIC HELPERS
@@ -10,6 +10,22 @@
 
 source _common.sh
 source /usr/share/yunohost/helpers
+
+# IMPORTANT NOTE ON SUB-PATH SUPPORT:
+# Calagopus Panel is a Vite/React SPA. Many Vite SPAs hardcode base: '/' in
+# their build configuration, which means they only work correctly when served
+# from the root of a domain, not from a sub-path like /panel.
+#
+# ASSUMPTION: Sub-path installs may produce a broken UI if the upstream build
+# does not respect the sub-path prefix for static asset URLs.
+#
+# If the admin has chosen a non-root path ("/"), this package will update
+# the NGINX config regardless, but the UI may be broken. To restrict installs
+# to root-only, set `path = "/"` as a fixed value in manifest.toml's [install]
+# section (remove the [install.path] question). See §3.5 of the packaging spec.
+#
+# Until this is verified against the live APT-installed binary, we allow
+# path changes but document the caveat here and in README.md.
 
 #=================================================
 # STOP SYSTEMD SERVICE
@@ -23,21 +39,17 @@ ynh_systemctl --service="$app" --action="stop"
 #=================================================
 ynh_script_progression "Updating NGINX web server configuration..."
 
-# this will most likely adjust NGINX config correctly
+# This helper handles domain and path changes in the NGINX config correctly.
+# It removes the old virtualhost conf, renders a new one from the template,
+# and reloads NGINX.
 ynh_config_change_url_nginx
-
-#=================================================
-# SPECIFIC MODIFICATIONS
-#=================================================
-
-## do any changes to files that reference specific installation domain/path, i.e. regenerate configs etc
 
 #=================================================
 # START SYSTEMD SERVICE
 #=================================================
 ynh_script_progression "Starting $app's systemd service..."
 
-ynh_systemctl --service="$app" --action="start"
+ynh_systemctl --service="$app" --action="start" --wait_until="Listening on"
 
 #=================================================
 # END OF SCRIPT
