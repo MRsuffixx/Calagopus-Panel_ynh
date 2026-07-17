@@ -8,26 +8,6 @@ source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
 #=================================================
-# REINSTALL CALAGOPUS APT REPOSITORY
-#=================================================
-ynh_script_progression "Reinstalling Calagopus APT repository..."
-
-# On a fresh server the repository won't be present — add it first
-# so the apt package can be installed before restoring app files.
-if [ ! -f "$repo_key_path" ]; then
-    curl --silent --show-error --location "$repo_key_url" \
-        | gpg --dearmor > "$repo_key_path"
-    chmod 644 "$repo_key_path"
-fi
-
-if [ ! -f "/etc/apt/sources.list.d/calagopus.list" ]; then
-    echo "$repo_source_string" > "/etc/apt/sources.list.d/calagopus.list"
-fi
-
-apt-get update --quiet
-DEBIAN_FRONTEND=noninteractive apt-get install --quiet --yes "$pkg_name"
-
-#=================================================
 # CREATE LOG DIRECTORY
 #=================================================
 
