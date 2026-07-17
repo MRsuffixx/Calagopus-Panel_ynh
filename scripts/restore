@@ -4,87 +4,89 @@
 # IMPORT GENERIC HELPERS
 #=================================================
 
-# Keep this path for calling _common.sh inside the execution's context of backup and restore scripts
 source ../settings/scripts/_common.sh
 source /usr/share/yunohost/helpers
 
 #=================================================
-# RESTORE THE APP MAIN DIR
+# REINSTALL CALAGOPUS APT REPOSITORY
+#=================================================
+ynh_script_progression "Reinstalling Calagopus APT repository..."
+
+# On a fresh server the repository won't be present — add it first
+# so the apt package can be installed before restoring app files.
+if [ ! -f "$repo_key_path" ]; then
+    curl --silent --show-error --location "$repo_key_url" \
+        | gpg --dearmor > "$repo_key_path"
+    chmod 644 "$repo_key_path"
+fi
+
+if [ ! -f "/etc/apt/sources.list.d/calagopus.list" ]; then
+    echo "$repo_source_string" > "/etc/apt/sources.list.d/calagopus.list"
+fi
+
+apt-get update --quiet
+DEBIAN_FRONTEND=noninteractive apt-get install --quiet --yes "$pkg_name"
+
+#=================================================
+# CREATE LOG DIRECTORY
+#=================================================
+
+mkdir -p "/var/log/$app"
+chown "$app:$app" "/var/log/$app"
+chmod 750 "/var/log/$app"
+
+#=================================================
+# RESTORE THE APP MAIN DIR (contains .env with encryption key!)
 #=================================================
 ynh_script_progression "Restoring the app main directory..."
 
+# !! SECURITY CRITICAL — ENCRYPTION KEY !!
+# The .env file inside $install_dir contains APP_ENCRYPTION_KEY.
+# It MUST be restored byte-for-byte from the archive. If this key changes,
+# all encrypted data in the database becomes permanently unreadable and
+# Calagopus users/servers will be locked out. Do NOT regenerate the key here.
 ynh_restore "$install_dir"
 
-### $install_dir will automatically be initialized with some decent
-### permissions by default... however, you may need to recursively reapply
-### ownership to all files such as after the ynh_setup_source step
-chown -R "$app:www-data" "$install_dir"
+# Ensure permissions are correct after restore
+chown -R "$app:$app" "$install_dir"
+chmod 600 "$install_dir/.env"
 
 #=================================================
-# RESTORE THE DATA DIRECTORY
+# RESTORE THE POSTGRESQL DATABASE
 #=================================================
-ynh_script_progression "Restoring the data directory..."
+ynh_script_progression "Restoring the PostgreSQL database..."
 
-ynh_restore "$data_dir"
-
-### (Same as for install dir)
-chown -R "$app:$app" "$data_dir"
-
-#=================================================
-# RESTORE THE MYSQL DATABASE
-#=================================================
-ynh_script_progression "Restoring the MySQL database..."
-
-ynh_mysql_db_shell < ./db.sql
+# The database and role are provisioned by the manifest resource before this
+# script runs. We restore the dump into the fresh (empty) database.
+ynh_pg_db_shell < "./db.sql"
 
 #=================================================
 # RESTORE SYSTEM CONFIGURATION
 #=================================================
 ynh_script_progression "Restoring system configurations related to $app..."
 
-### This should be a symetric version of what happens in the install script
-
-ynh_restore "/etc/php/$php_version/fpm/pool.d/$app.conf"
-
+# Restore the NGINX configuration
 ynh_restore "/etc/nginx/conf.d/$domain.d/$app.conf"
 
+# Restore the systemd service unit and enable it
 ynh_restore "/etc/systemd/system/$app.service"
 systemctl enable "$app.service" --quiet
+systemctl daemon-reload
 
-yunohost service add "$app" --description="A short description of the app" --log="/var/log/$app/$app.log"
+# Re-register the service with YunoHost
+yunohost service add "$app" \
+    --description="Calagopus Panel — game server management panel" \
+    --log="/var/log/$app/$app.log"
 
+# Restore logrotate configuration
 ynh_restore "/etc/logrotate.d/$app"
 
-ynh_restore "/etc/fail2ban/jail.d/$app.conf"
-ynh_restore "/etc/fail2ban/filter.d/$app.conf"
-ynh_systemctl --action=restart --service=fail2ban
-
 #=================================================
-# RESTORE VARIOUS FILES
-#=================================================
-
-ynh_restore "/etc/cron.d/$app"
-ynh_restore "/etc/$app/"
-
-### For apps with huge logs, you might want to not backup logs every time:
-### The mkdir call is just here in case the log directory was not backed up.
-### mkdir -p "/var/log/$app"
-### chown $app:www-data "/var/log/$app"
-### ynh_restore "/var/log/$app/" || true
-###
-### For other apps, the simple way is better:
-ynh_restore "/var/log/$app/"
-
-#=================================================
-# RELOAD NGINX AND PHP-FPM OR THE APP SERVICE
+# RELOAD NGINX AND START THE APP SERVICE
 #=================================================
 ynh_script_progression "Reloading NGINX web server and $app's service..."
 
-### Typically you only have either $app or PHP-FPM but not both at the same time...
-ynh_systemctl --service="$app" --action="start"
-
-ynh_systemctl --service="php$php_version-fpm" --action=reload
-
+ynh_systemctl --service="$app" --action="start" --wait_until="Listening on"
 ynh_systemctl --service=nginx --action=reload
 
 #=================================================
