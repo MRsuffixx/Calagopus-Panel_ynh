@@ -1,7 +1,9 @@
-This is a dummy disclaimer to display after the install
+## First-run setup required
 
-The app url is <https://__DOMAIN____PATH__>
+After installation, open your browser and navigate to your panel URL.
 
-The app install dir is `__INSTALL_DIR__`
+You will see the **Calagopus Out-Of-Box Experience (OOBE)** wizard. Follow the on-screen instructions to create your first administrator account.
 
-The app id is `__ID__`
+> **Note:** YunoHost accounts are **not** linked to Calagopus accounts. This is intentional. Create and manage Calagopus users through the Calagopus interface.
+
+> **Important:** Your `APP_ENCRYPTION_KEY` was generated at install time and stored in `/var/www/__APP__/.env`. Keep it safe — it encrypts all stored credentials. Back up your panel regularly with `yunohost app backup create __APP__`.

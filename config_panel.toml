@@ -1,0 +1,49 @@
+#:schema https://github.com/YunoHost/apps/raw/main/schemas/config_panel.v1.schema.json
+
+# Calagopus Panel — Config Panel
+# Accessible from: YunoHost webadmin > Apps > Calagopus Panel > Config Panel
+#
+# This panel exposes a safe subset of .env settings that can be changed
+# after installation without reinstalling the app.
+# Changing any setting here will restart the calagopus-panel service.
+
+version = "1.0"
+
+[main]
+name.en = "Panel Configuration"
+services = ["__APP__"]
+
+    [main.runtime]
+    name.en = "Runtime settings"
+    optional = true
+
+        [main.runtime.app_debug]
+        ask.en = "Enable debug mode"
+        help.en = "When enabled, the panel outputs verbose error details. Do NOT enable in production — it may expose sensitive information to users. Requires service restart."
+        type = "boolean"
+        # Bind to the .env file — YunoHost will automagically find APP_DEBUG=<value>
+        # in the file and read/write it.
+        bind = "APP_DEBUG:__INSTALL_DIR__/.env"
+        yes = "true"
+        no = "false"
+        default = "false"
+
+        [main.runtime.server_name]
+        ask.en = "Instance name"
+        help.en = "A display name shown in the panel footer and used in error reports. Useful for identifying this instance in multi-instance setups."
+        type = "string"
+        bind = "SERVER_NAME:__INSTALL_DIR__/.env"
+        example = "My Calagopus Panel"
+
+    [main.observability]
+    name.en = "Error reporting (Sentry)"
+    optional = true
+
+        [main.observability.sentry_url]
+        ask.en = "Sentry DSN"
+        help.en = "Optional Sentry DSN for error tracking. Leave empty to disable. Format: https://<key>@sentry.io/<project-id>"
+        type = "url"
+        # Handled by the custom setter in scripts/config to toggle the comment
+        bind = "null"
+        example = "https://abc123@o0.ingest.sentry.io/000000"
+        optional = true
