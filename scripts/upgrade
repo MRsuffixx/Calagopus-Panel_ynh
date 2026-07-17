@@ -34,30 +34,6 @@ ynh_app_setting_set_default --key=sentry_url --value=""
 ynh_app_setting_set_default --key=app_debug --value="false"
 ynh_app_setting_set_default --key=redis_db --value="0"
 
-#=================================================
-# ENSURE CALAGOPUS APT REPO IS STILL REGISTERED
-#=================================================
-ynh_script_progression "Ensuring Calagopus APT repository is current..."
-
-# Re-import key and source list in case they were removed or corrupted
-if [ ! -f "$repo_key_path" ]; then
-    curl --silent --show-error --location "$repo_key_url" \
-        | gpg --dearmor > "$repo_key_path"
-    chmod 644 "$repo_key_path"
-fi
-
-if [ ! -f "/etc/apt/sources.list.d/calagopus.list" ]; then
-    echo "$repo_source_string" > "/etc/apt/sources.list.d/calagopus.list"
-fi
-
-apt-get update --quiet
-
-#=================================================
-# UPGRADE CALAGOPUS PANEL BINARY
-#=================================================
-ynh_script_progression "Upgrading $app package..."
-
-DEBIAN_FRONTEND=noninteractive apt-get install --quiet --yes --only-upgrade "$pkg_name"
 
 #=================================================
 # ENSURE LOG DIRECTORY EXISTS

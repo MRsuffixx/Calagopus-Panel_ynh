@@ -44,33 +44,6 @@ app_debug="false"
 ynh_app_setting_set --key=app_debug --value="$app_debug"
 
 #=================================================
-# ADD CALAGOPUS APT REPOSITORY
-#=================================================
-ynh_script_progression "Adding Calagopus APT repository..."
-
-# Import the GPG signing key
-curl --silent --show-error --location "$repo_key_url" \
-    | gpg --dearmor > "$repo_key_path"
-chmod 644 "$repo_key_path"
-
-# Register the APT source list
-echo "$repo_source_string" > "/etc/apt/sources.list.d/calagopus.list"
-
-# Refresh package index to include the new repo
-apt-get update --quiet
-
-#=================================================
-# INSTALL CALAGOPUS PANEL BINARY
-#=================================================
-ynh_script_progression "Installing $app package..."
-
-# The 'apt' resource in manifest.toml installs the package, but we need the
-# extra repo registered first (done above). The resource runs before this script,
-# so we install explicitly here to ensure it's present and up to date.
-# Note: If the manifest 'apt' resource already installed it, this is a no-op.
-DEBIAN_FRONTEND=noninteractive apt-get install --quiet --yes "$pkg_name"
-
-#=================================================
 # CREATE LOG DIRECTORY
 #=================================================
 ynh_script_progression "Creating log directory..."
