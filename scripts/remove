@@ -32,7 +32,24 @@ ynh_config_remove_systemd
 # Remove the NGINX virtualhost configuration
 ynh_config_remove_nginx
 
+#=================================================
+# REMOVE CALAGOPUS APT REPOSITORY AND KEY
+#=================================================
+ynh_script_progression "Removing Calagopus APT repository..."
 
+# Remove the APT source list entry
+ynh_safe_rm "/etc/apt/sources.list.d/calagopus.list"
+
+# Remove the GPG signing key
+ynh_safe_rm "$repo_key_path"
+
+# Refresh package index so future apt operations don't warn about missing repo
+apt-get update --quiet 2>/dev/null || true
+
+# Remove the calagopus-panel package itself
+# We do not use apt-get autoremove to avoid removing PostgreSQL or Redis
+# that may be shared with other apps.
+DEBIAN_FRONTEND=noninteractive apt-get remove --quiet --yes "$pkg_name" 2>/dev/null || true
 
 #=================================================
 # REMOVE LOG DIRECTORY

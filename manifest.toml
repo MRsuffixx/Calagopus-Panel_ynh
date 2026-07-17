@@ -92,13 +92,11 @@ ram.runtime = "256M"
     # The panel's HTTP listener is bound to 127.0.0.1:$port
 
     [resources.apt]
-    # Native YunoHost integration for the Calagopus third-party repository.
-    # YunoHost automatically handles key fetching, sources.list.d creation,
-    # package installation, and cleanup during removal/restore.
-    [resources.apt.extras.calagopus]
-    repo = "deb https://packages.calagopus.com/deb stable main"
-    key = "https://packages.calagopus.com/pub.gpg"
-    packages = ["calagopus-panel"]
+    # Declare curl and gpg as system dependencies needed for repo key import.
+    # calagopus-panel itself is installed manually after the repo is added.
+    # (We cannot use the apt resource for calagopus-panel directly because the
+    # repo must be registered first, which happens in the install script.)
+    packages = ["curl", "gpg"]
 
     [resources.database]
     # Auto-provisions a PostgreSQL role and database.
