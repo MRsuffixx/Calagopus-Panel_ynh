@@ -105,7 +105,7 @@ ynh_config_add_logrotate "/var/log/$app/$app.log"
 ynh_script_progression "Starting $app's systemd service..."
 
 # Start the panel; DATABASE_MIGRATE=true (in .env) runs db migrations on boot
-ynh_systemctl --service="$app" --action="start" --wait_until="Listening on"
+ynh_systemctl --service="$app" --action="start"
 
 #=================================================
 # HEALTH CHECK
